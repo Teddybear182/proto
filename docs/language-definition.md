@@ -16,7 +16,7 @@ statement ::=
   expression ";"
 
 function-statement ::=
-  "task" indetifier ":" type "(" ((type identifier,)*)? ")" statement
+  "task" identifier ( "(" (identifier ":" type,)* ")" )? (":" type)? block-statement
 
 var-definition ::=
   "var" identifier ":" type (assign_expr)? ";"
@@ -70,18 +70,17 @@ unary_expr ::=
 primary_expr ::=
   "(" expression ")"
   identifier
-  identifier "(" ((expression,)*)? ")"
+  identifier "(" (expression,)* ")"
   numeric_literal
   string_literal
+  char_literal
   true
   false
 
 type ::=
     integer
     float
-    decimal
-    str
+    string
     char
     boolean
-    null
 ```
