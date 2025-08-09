@@ -2,27 +2,21 @@
 
 ```
 program ::=
-  statement*
+  var-definition*
+  function-statement*
 
 statement ::=
-  break-statement ";"
-  continue-statement ";"
-  return-statement ";"
+  "break" ";"
+  "continue" ";"
+  "return" ";"
   var-definition
   if-statement
   loop-statement
   block-statement
-  function-statement
   expression ";"
 
-break-statement ::=
-  "break" ";"
-
-continue-statement ::=
-  "continue" ";"
-
-return-statement ::=
-  "return" expression ";"
+function-statement ::=
+  "task" indetifier ":" type "(" ((type identifier,)*)? ")" statement
 
 var-definition ::=
   "var" identifier ":" type (assign_expr)? ";"
@@ -36,10 +30,8 @@ block-statement ::=
 
 loop-statement ::=
   "while" expression statement
-
-function-statement ::=
-  "task" indetifier ":" type "(" ((identifier,)*)? ")" statement
-
+  
+ 
 expression ::=
   assign_expr
 
@@ -53,8 +45,8 @@ and_expr ::=
   comp_expr1 "and" comp_expr1
 
 comp_expr1 ::=
-  comp_expr2 "===" comp_expr2
-  comp_expr2 "!==" comp_expr2
+  comp_expr2 "=" comp_expr2
+  comp_expr2 "!=" comp_expr2
 
 comp_expr2 ::=
   add_expr "<" add_expr
@@ -73,18 +65,23 @@ mult_expr ::=
 
 unary_expr ::=
   "-" primary_expr
-  "!" primary_expr
+  "not" primary_expr
 
 primary_expr ::=
   "(" expression ")"
   identifier
   identifier "(" ((expression,)*)? ")"
-  integer
-  float
-  decimal
-  str
-  char
-  boolean
-  null
+  numeric_literal
+  string_literal
+  true
+  false
 
+type ::=
+    integer
+    float
+    decimal
+    str
+    char
+    boolean
+    null
 ```
