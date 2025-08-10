@@ -10,6 +10,14 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <!-- Used in CLI info section ("about")  -->
+    <AssemblyVersion>0.0.0.1</AssemblyVersion>
+    <Product>Proto CLI</Product>
+    <Authors>Fyodor Belousov, Tikhon Belousov</Authors>
+    <Company>Fyodor Belousov, Tikhon Belousov</Company>
+    <Description>Command-line tools for the Proto programming language</Description>
+    <RepositoryUrl>https://github.com/Teddybear182/proto</RepositoryUrl>
+    
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
