@@ -1,14 +1,16 @@
 namespace Proto.Compiler.Lexer;
 
 public enum TokenType {
-  Integer,
-  Float,
-  String,
-  Char,
-  Boolean,
+  IntegerLiteral,
+  FloatLiteral,
+  StringLiteral,
+  CharLiteral,
+  BooleanLiteral,
+  Identifier,
   Operator,
   Keyword,
   Punctuation,
-  Types,
-  EOF
+  Type,
+  EOF,
+  Undefined
 }
