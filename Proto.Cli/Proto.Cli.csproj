@@ -15,7 +15,7 @@
     <Product>Proto CLI</Product>
     <Authors>Fyodor Belousov, Tikhon Belousov</Authors>
     <Company>Fyodor Belousov, Tikhon Belousov</Company>
-    <Description>Command-line tools for the Proto programming language</Description>
+    <Description>Command-line tools for the Proto programming language.</Description>
     <RepositoryUrl>https://github.com/Teddybear182/proto</RepositoryUrl>
     
     <OutputType>Exe</OutputType>

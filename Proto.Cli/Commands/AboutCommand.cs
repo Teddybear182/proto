@@ -16,7 +16,7 @@ internal sealed class AboutCommand : Command {
     var versionAndAuthorsText = new Panel($"[blue]Version: {projectInfo.Version}, by {projectInfo.Authors}[/]")
       .Border(BoxBorder.Ascii)
       .BorderColor(Color.Blue);
-    var descriptionText = new Panel(projectInfo.Description)
+    var descriptionText = new Panel($"{projectInfo.Description}\nTo see the available commands, run the CLI with [yellow]'[italic]--help[/]'[/] flag.")
       .Padding(2, 2)
       .Border(BoxBorder.None);
     var repositoryUrlText = new Panel($"[blue]Repository: [underline][bold]{projectInfo.RepositoryUrl}[/][/][/]")
