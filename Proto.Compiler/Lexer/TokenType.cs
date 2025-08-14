@@ -12,5 +12,6 @@ public enum TokenType {
   Punctuation,
   Type,
   EOF,
-  Undefined
+  Undefined,
+  Illegal,
 }

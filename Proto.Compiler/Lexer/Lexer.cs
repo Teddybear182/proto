@@ -1,62 +1,18 @@
-using System.Runtime.InteropServices.JavaScript;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Proto.Compiler.Lexer;
 
-public class Lexer() {
-  private int _lines = 1;
-  private int _pos = 0;
-  private readonly TextReader _reader = TextReader.Null;
+public sealed class Lexer(TextReader reader) {
+  private readonly ProgramSource _source = new ProgramSource(reader);
+  private readonly LexerConstants _constants = new LexerConstants();
 
-  private readonly List<string> _keywords = ["break","continue","return","var","const","begin","end","if","then","else","task","while" ];
-  private readonly List<char> _punctuation = [';', ':', '.', ',', '{', '}', '(', ')', '[', ']'];
-  private readonly List<string> _operators = ["+", "-", "*", "/", "%", ":=", "!=", "=", "<=", ">=", "<", ">", "and", "or", "not"];
-  private readonly List<string> _types =  ["integer", "float", "string", "char", "boolean"];
-  private readonly List<string> _bool =  ["true", "false"];
+  public Token ReadToken() {
+    _source.SkipWhitespace();
+    _source.SkipNewLine();
 
-  public Lexer(TextReader reader) : this() {
-    _reader = reader;
-  }
-
-  private char Peek() { // reads without advancing to the next char
-    int peek = _reader.Peek();
-    if (peek != -1) {
-      return (char)_reader.Peek();
-    } else {
-      return '\0';
-    }
-  }
-
-  private char Read() { // reads the char and advances to the next char
-    int read = _reader.Read();
-    if (read != -1) {
-      return (char)read;
-    } else {
-      return '\0';
-    }
-  }
-
-  private Token ReadToken() {
-    char currentChar = Read(); // "eats" the next char
-
+    char currentChar = _source.ReadChar(); // "eats" the next char
 
     if (currentChar != '\0') {
-
-      if (currentChar == '\n') {
-        _lines++;
-        return ReadToken();
-      }
-
-      if (currentChar == '\r') {
-        _lines++;
-        return ReadToken();
-      }
-
-      if (char.IsWhiteSpace(currentChar)) { // just adding 1 to the pos cause Read() function already advanced to the next token so whitespace gonna be ignored
-        _pos++;
-        return ReadToken();
-      }
 
       if (char.IsDigit(currentChar)) {
         return ReadNumberToken(currentChar);
@@ -74,103 +30,154 @@ public class Lexer() {
         return ReadCharToken();
       }
 
-      if (_punctuation.Contains(currentChar)) {
-        return new Token(TokenType.Punctuation, currentChar.ToString(), _lines, _pos);
+      if (_constants.Punctuation.Contains(currentChar)) {
+        return new Token(TokenType.Punctuation, currentChar.ToString(), _source.GetLine(), _source.GetColumn());
       }
 
-      return new Token(TokenType.Undefined, currentChar.ToString(), _lines, _pos);
-    } else {
-      return new Token(TokenType.EOF, String.Empty, _lines, _pos);
+      switch (currentChar) {
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '<':
+        case '>':
+          StringBuilder value = new StringBuilder();
+          value.Append(currentChar);
+          if (_source.PeekChar() == '=') {
+            value.Append(_source.ReadChar());
+          }
+          return new Token(TokenType.Operator, value.ToString(), _source.GetLine(), _source.GetColumn());
+        case '!':
+        case ':':
+          StringBuilder value2 = new StringBuilder();
+          value2.Append(currentChar);
+          if (_source.PeekChar() != '=') {
+            return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn()); // its must be either != or :=
+          }
+          value2.Append(_source.ReadChar());
+          return new Token(TokenType.Operator, value2.ToString(), _source.GetLine(), _source.GetColumn());
+        case '=':
+        case '%':
+          return new Token(TokenType.Operator, currentChar.ToString(), _source.GetLine(), _source.GetColumn());
+      }
+
+      return new Token(TokenType.Undefined, currentChar.ToString(), _source.GetLine(), _source.GetColumn());
     }
+
+    return new Token(TokenType.EOF, String.Empty, _source.GetLine(), _source.GetColumn());
   }
 
   private Token ReadNumberToken(char currentChar) {
     StringBuilder value = new StringBuilder();
+    value.Append(ReadInteger(currentChar));
+
+    if (_source.PeekChar() != '.') {
+      return new Token(TokenType.IntegerLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
+    }
+
+    value.Append(_source.ReadChar()); // appends dot to the value
+
+    char afterDot = _source.PeekChar();
+    if (char.IsDigit(afterDot)) {
+      value.Append(ReadInteger(_source.ReadChar()));
+      return new Token(TokenType.FloatLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
+    }
+
+    return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn());
+  }
+
+  private string ReadInteger(char currentChar) {
+    StringBuilder value = new StringBuilder();
     value.Append(currentChar);
-    _pos++;
 
-    char nextChar = Read();
-    while (nextChar != '\0' && char.IsDigit(nextChar)) { // \0 represents null and is not digit
+    char nextChar = _source.PeekChar();
+    while (nextChar != '\0' && char.IsDigit(nextChar)) {
+      _source.Eat();
       value.Append(nextChar);
-      _pos++;
-      nextChar = Read();
+      nextChar = _source.PeekChar();
     }
 
-    bool isFloat = false;
-
-    if (nextChar == '.') { //checks for float
-      char afterDot = Peek();
-      if (char.IsDigit(afterDot)) { // checks if there is a digit after dot
-        isFloat = true;
-        value.Append(nextChar); // appends '.' to the value
-        _pos++;
-        afterDot = Read();
-        while (afterDot != '\0' && char.IsDigit(afterDot)) {
-          value.Append(afterDot);
-          _pos++;
-          afterDot = Read();
-        }
-      }
-
-    }
-
-    if (isFloat) {
-      return new Token(TokenType.FloatLiteral, value.ToString(), _lines, _pos);
-    }
-    return new Token(TokenType.IntegerLiteral, value.ToString(), _lines, _pos);
+    return value.ToString();
   }
 
   private Token ReadIdentifierToken(char currentChar) {
     StringBuilder value = new StringBuilder();
-    while (char.IsLetterOrDigit(currentChar)) { // adds next chars until whitespace or new line
-      value.Append(currentChar);
-      _pos++;
-      currentChar = Read();
+    value.Append(currentChar);
+
+    char nextChar = _source.PeekChar();
+    while (nextChar != '\0' && char.IsLetterOrDigit(nextChar)) {
+      _source.Eat();
+      value.Append(nextChar);
+      nextChar = _source.PeekChar();
     }
 
-    if (_operators.Contains(value.ToString())) {
-      return new Token(TokenType.Operator, value.ToString(), _lines, _pos);
+    if (_constants.Keywords.Contains(value.ToString())) {
+      return new Token(TokenType.Keyword, value.ToString(), _source.GetLine(), _source.GetColumn());
     }
 
-    if (_keywords.Contains(value.ToString())) {
-      return new Token(TokenType.Keyword, value.ToString(), _lines, _pos);
+    if (_constants.Bool.Contains(value.ToString())) {
+      return new Token(TokenType.BooleanLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
     }
 
-    if (_bool.Contains(value.ToString())) {
-      return new Token(TokenType.BooleanLiteral, value.ToString(), _lines, _pos);
+    if (_constants.Types.Contains(value.ToString())) {
+      return new Token(TokenType.Type, value.ToString(), _source.GetLine(), _source.GetColumn());
     }
 
-    if (_types.Contains(value.ToString())) {
-      return new Token(TokenType.Type, value.ToString(), _lines, _pos);
+    if (_constants.WordOperators.Contains(value.ToString())) {
+      return new Token(TokenType.Operator, value.ToString(), _source.GetLine(), _source.GetColumn());
     }
 
-    return new Token(TokenType.Identifier, value.ToString(), _lines, _pos);
+    return new Token(TokenType.Identifier, value.ToString(), _source.GetLine(), _source.GetColumn());
   }
 
   private Token ReadStringToken() {
     StringBuilder value = new StringBuilder();
-    char currentChar = Read();
-    while (char.IsLetterOrDigit(currentChar) && currentChar != '"') { // checks if content of the string is valid and if its not the end of the string
-      value.Append(currentChar);
-      _pos++;
-      currentChar = Read();
+    char currentChar = _source.PeekChar();
+    while (currentChar != '"') {
+      if (char.IsLetterOrDigit(currentChar)) {
+        _source.Eat();
+        value.Append(currentChar);
+      }
+
+      if (currentChar == '\\') {
+        _source.Eat();
+        char nextChar =  _source.PeekChar();
+
+        switch (nextChar) {
+          case 'n':
+            _source.Eat();
+            value.Append('\n');
+            break;
+          case 't':
+            _source.Eat();
+            value.Append('\t');
+            break;
+          case '"':
+            _source.Eat();
+            value.Append('"');
+            break;
+          default:
+            return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn());
+        }
+      }
+      currentChar = _source.PeekChar();
     }
-    return new Token(TokenType.StringLiteral, value.ToString(), _lines, _pos);
+    return new Token(TokenType.StringLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
   }
 
   private Token ReadCharToken() {
     StringBuilder value = new StringBuilder("");
-    char currentChar = Read();
+    char currentChar = _source.PeekChar();
     if (char.IsLetterOrDigit(currentChar)) { // checks if char is valid
+      _source.Eat();
       value.Append(currentChar);
-      _pos++;
     }
 
-    if (char.IsLetterOrDigit(Peek())) {
-      Console.WriteLine("[Lexer error] Expected char literal, not string literal."); // idk if its needed
+    if (char.IsLetterOrDigit(_source.PeekChar())) {
+      return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn());
     }
 
-    return new Token(TokenType.CharLiteral, value.ToString(), _lines, _pos);
+    return new Token(TokenType.CharLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
   }
 
 }
