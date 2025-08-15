@@ -12,6 +12,12 @@ trim_trailing_whitespace = true
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = true
 
+# Explicit 'this'
+dotnet_style_qualification_for_field = true:warning
+dotnet_style_qualification_for_property = true:warning
+dotnet_style_qualification_for_method = true:warning
+dotnet_style_qualification_for_event = true:warning
+
 # K&R style braces
 csharp_new_line_before_open_brace = none
 csharp_new_line_before_else = false
