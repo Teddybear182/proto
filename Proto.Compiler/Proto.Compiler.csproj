@@ -1,6 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Used in CLI repl info -->
+    <AssemblyVersion>0.0.0.1</AssemblyVersion>
+    <Product>Proto</Product>
+    <Authors>Fyodor Belousov, Tikhon Belousov</Authors>
+    <Company>Fyodor Belousov, Tikhon Belousov</Company>
+    <Description>Proto language implementation</Description>
+    <RepositoryUrl>https://github.com/Teddybear182/proto</RepositoryUrl>
+
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
