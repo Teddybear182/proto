@@ -1,57 +1,41 @@
 namespace Proto.Compiler.Lexer;
 
-internal sealed class ProgramSource(TextReader reader) {
+using Proto.Compiler.Utils;
+
+internal sealed class ProgramSource(TextReader reader) : IPeekable<char?> {
   private const int StartingLine = 1;
   private const int StartingColumn = 0;
 
-  private uint _line = StartingLine;
-  private uint _column = StartingColumn;
+  public uint Line { get; private set; } = StartingLine;
+  public uint Column { get; private set; } = StartingColumn;
 
-  internal char PeekChar() {
-    int peek = reader.Peek();
-    if (peek != -1) {
-      return (char) peek;
+  public char? Peek() {
+    var peeked = reader.Peek();
+    if (peeked == -1) {
+      return null;
     }
-    return '\0';
+    return (char) peeked;
   }
 
-  internal char ReadChar() {
-    int read = reader.Read();
-    if (read != -1) {
-      _column++;
-      return (char) read;
+  public char? Next() {
+    var read = reader.Read();
+    if (read == -1) {
+      return null;
     }
-    return '\0';
-  }
-
-  internal void Eat() {
-    reader.Read();
-    _column++;
-  }
-
-  internal uint GetLine() {
-    return _line;
-  }
-
-  internal uint GetColumn() {
-    return _column;
-  }
-
-  internal void SkipWhitespace() {
-    while (char.IsWhiteSpace(PeekChar())) {
-      ReadChar();
+    var charRead = (char) read;
+    if (charRead == '\n') {
+      this.Line++;
+      this.Column = StartingColumn;
+    } else {
+      this.Column++;
     }
+    return charRead;
   }
 
-  internal void SkipNewLine() {
-    if (PeekChar() == '\n') {
-      reader.Read();
-      _column = StartingColumn;
-      _line++;
-    }
-  }
+  public bool IsEof => this.Peek() == null;
 
-  internal bool IsEof() {
-    return reader.Peek() == -1;
-  }
+  public Location Location => new(
+    Line: this.Line,
+    Column: this.Column
+  );
 }
