@@ -32,6 +32,14 @@ internal sealed class ProgramSource(TextReader reader) : IPeekable<char?> {
     return charRead;
   }
 
+  public char NextAsserted() {
+    var nextSymbol = this.Next();
+    if (nextSymbol is not { } nonNullNextSymbol) {
+      throw new InvalidOperationException("NextAsserted() returned null character");
+    }
+    return nonNullNextSymbol;
+  }
+
   public bool IsEof => this.Peek() == null;
 
   public Location Location => new(

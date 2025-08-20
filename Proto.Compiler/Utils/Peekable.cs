@@ -1,6 +1,6 @@
 namespace Proto.Compiler.Utils;
 
-internal abstract class Peekable<T> : IPeekable<T> {
+public abstract class Peekable<T> : IPeekable<T> {
 #pragma warning disable
   private T _current;
 #pragma warning restore

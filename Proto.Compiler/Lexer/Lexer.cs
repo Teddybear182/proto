@@ -1,183 +1,169 @@
-using System.Text;
-
 namespace Proto.Compiler.Lexer;
 
-public sealed class Lexer(TextReader reader) {
-  private readonly ProgramSource _source = new ProgramSource(reader);
-  private readonly LexerConstants _constants = new LexerConstants();
+using System.Diagnostics.Contracts;
+using System.Text;
 
-  public Token ReadToken() {
-    _source.SkipWhitespace();
-    _source.SkipNewLine();
+using Proto.Compiler.Utils;
 
-    char currentChar = _source.ReadChar(); // "eats" the next char
+public sealed class Lexer : Peekable<Token> {
+  private readonly ProgramSource _source;
+  private Location _tokenLocation;
 
-    if (currentChar != '\0') {
-
-      if (char.IsDigit(currentChar)) {
-        return ReadNumberToken(currentChar);
-      }
-
-      if (char.IsLetter(currentChar)) {
-        return ReadIdentifierToken(currentChar);
-      }
-
-      if (currentChar == '"') {
-        return ReadStringToken();
-      }
-
-      if (currentChar == '\'') {
-        return ReadCharToken();
-      }
-
-      if (_constants.Punctuation.Contains(currentChar)) {
-        return new Token(TokenType.Punctuation, currentChar.ToString(), _source.GetLine(), _source.GetColumn());
-      }
-
-      switch (currentChar) {
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '<':
-        case '>':
-          StringBuilder value = new StringBuilder();
-          value.Append(currentChar);
-          if (_source.PeekChar() == '=') {
-            value.Append(_source.ReadChar());
-          }
-          return new Token(TokenType.Operator, value.ToString(), _source.GetLine(), _source.GetColumn());
-        case '!':
-        case ':':
-          StringBuilder value2 = new StringBuilder();
-          value2.Append(currentChar);
-          if (_source.PeekChar() != '=') {
-            return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn()); // its must be either != or :=
-          }
-          value2.Append(_source.ReadChar());
-          return new Token(TokenType.Operator, value2.ToString(), _source.GetLine(), _source.GetColumn());
-        case '=':
-        case '%':
-          return new Token(TokenType.Operator, currentChar.ToString(), _source.GetLine(), _source.GetColumn());
-      }
-
-      return new Token(TokenType.Undefined, currentChar.ToString(), _source.GetLine(), _source.GetColumn());
-    }
-
-    return new Token(TokenType.EOF, String.Empty, _source.GetLine(), _source.GetColumn());
+  public Lexer(TextReader reader) {
+    this._source = new ProgramSource(reader);
+    this._tokenLocation = this._source.Location;
   }
 
-  private Token ReadNumberToken(char currentChar) {
-    StringBuilder value = new StringBuilder();
-    value.Append(ReadInteger(currentChar));
+  protected override Token ReadElement() {
+    this.SkipWhitespace();
+    var maybeCurrentChar = this._source.Peek();
+    this._tokenLocation = this._source.Location;
 
-    if (_source.PeekChar() != '.') {
-      return new Token(TokenType.IntegerLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
+    if (this._source.IsEof || maybeCurrentChar is not { } currentChar) {
+      return this.Token(TokenType.Eof, string.Empty);
     }
 
-    value.Append(_source.ReadChar()); // appends dot to the value
-
-    char afterDot = _source.PeekChar();
-    if (char.IsDigit(afterDot)) {
-      value.Append(ReadInteger(_source.ReadChar()));
-      return new Token(TokenType.FloatLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
+    if (LexerRules.IsBeginningOfNumber(currentChar)) {
+      return this.ReadNumberToken();
     }
 
-    return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn());
+    if (LexerRules.IsBeginningOfWord(currentChar)) {
+      return this.ReadWordToken();
+    }
+
+    if (LexerRules.IsStringLiteralFirstSymbol(currentChar)) {
+      return this.ReadStringToken();
+    }
+
+    if (LexerRules.IsCharLiteralFirstSymbol(currentChar)) {
+      return this.ReadCharToken();
+    }
+
+    if (LexerRules.IsPunctuation(currentChar)) {
+      return this.ReadSingleCharPunctuation();
+    }
+
+    if (LexerRules.IsCompoundOperatorSymbol(currentChar)) {
+      return this.ReadCompoundAssignmentOperator();
+    }
+
+    if (LexerRules.IsInitialSymbolOfEqualSignOperator(currentChar)) {
+      return this.ReadOperatorWithEqualSignEnding();
+    }
+
+    if (LexerRules.IsSingleCharOperator(currentChar)) {
+      return this.ReadSingleCharOperator();
+    }
+
+    return this.ReadIllegalToken();
   }
 
-  private string ReadInteger(char currentChar) {
-    StringBuilder value = new StringBuilder();
-    value.Append(currentChar);
+  #region Lexer Helper Functions
 
-    char nextChar = _source.PeekChar();
-    while (nextChar != '\0' && char.IsDigit(nextChar)) {
-      _source.Eat();
-      value.Append(nextChar);
-      nextChar = _source.PeekChar();
+  private string ReadWhile(Func<char, bool> predicate) {
+    var output = new StringBuilder();
+    while (!this._source.IsEof) {
+      var peek = this._source.Peek();
+      if (peek is { } charPeek) {
+        if (!predicate(charPeek)) break;
+        output.Append(charPeek);
+      } else break;
     }
-
-    return value.ToString();
+    return output.ToString();
   }
 
-  private Token ReadIdentifierToken(char currentChar) {
-    StringBuilder value = new StringBuilder();
-    value.Append(currentChar);
-
-    char nextChar = _source.PeekChar();
-    while (nextChar != '\0' && char.IsLetterOrDigit(nextChar)) {
-      _source.Eat();
-      value.Append(nextChar);
-      nextChar = _source.PeekChar();
-    }
-
-    if (_constants.Keywords.Contains(value.ToString())) {
-      return new Token(TokenType.Keyword, value.ToString(), _source.GetLine(), _source.GetColumn());
-    }
-
-    if (_constants.Bool.Contains(value.ToString())) {
-      return new Token(TokenType.BooleanLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
-    }
-
-    if (_constants.Types.Contains(value.ToString())) {
-      return new Token(TokenType.Type, value.ToString(), _source.GetLine(), _source.GetColumn());
-    }
-
-    if (_constants.WordOperators.Contains(value.ToString())) {
-      return new Token(TokenType.Operator, value.ToString(), _source.GetLine(), _source.GetColumn());
-    }
-
-    return new Token(TokenType.Identifier, value.ToString(), _source.GetLine(), _source.GetColumn());
+  private void SkipWhitespace() {
+    this.ReadWhile(LexerRules.IsWhitespace);
   }
 
+  private string ReadIntegerPart() {
+    return this.ReadWhile(LexerRules.IsDigit);
+  }
+
+  [Pure]
+  private Token Token(TokenType tokenType, string value) {
+    return new Token(
+      Type: tokenType,
+      Value: value,
+      Location: this._tokenLocation
+    );
+  }
+
+  #endregion
+
+  #region Token Functions
+
+  private Token ReadCompoundAssignmentOperator() {
+    var operatorLiteral = this._source.NextAsserted().ToString();
+    if (LexerRules.IsEqualSign(this._source.Peek())) {
+      operatorLiteral += this._source.NextAsserted();
+    }
+    return this.Token(TokenType.Operator, operatorLiteral);
+  }
+
+  private Token ReadOperatorWithEqualSignEnding() {
+    var operatorLiteral = this._source.NextAsserted().ToString();
+    if (!LexerRules.IsEqualSign(this._source.Peek())) {
+      return this.Token(TokenType.Illegal, operatorLiteral);
+    }
+    operatorLiteral += this._source.NextAsserted();
+    return this.Token(TokenType.Operator, operatorLiteral);
+  }
+
+  private Token ReadSingleCharOperator() {
+    var operatorLiteral = this._source.NextAsserted().ToString();
+    return this.Token(TokenType.Operator, operatorLiteral);
+  }
+
+  private Token ReadSingleCharPunctuation() {
+    var punctuationLiteral = this._source.NextAsserted().ToString();
+    return this.Token(TokenType.Punctuation, punctuationLiteral);
+  }
+
+  private Token ReadIllegalToken() {
+    var illegalTokenLiteral = this.ReadWhile(symbol => !LexerRules.IsWhitespace(symbol));
+    return this.Token(TokenType.Illegal, illegalTokenLiteral);
+  }
+
+  private Token ReadNumberToken() {
+    var numberLiteral = this.ReadIntegerPart();
+    if (!LexerRules.IsDotSign(this._source.Peek())) {
+      return this.Token(TokenType.IntegerLiteral, numberLiteral);
+    }
+    numberLiteral += this._source.NextAsserted();
+    numberLiteral += this.ReadIntegerPart();
+    return this.Token(TokenType.FloatLiteral, numberLiteral);
+  }
+
+  private Token ReadWordToken() {
+    var word = this.ReadWhile(LexerRules.IsWordSymbol);
+    var type = LexerRules.GetWordTokenType(word);
+    return this.Token(type, word);
+  }
+
+  // TODO: add special characters like \n and \t + quotes escaping
   private Token ReadStringToken() {
-    StringBuilder value = new StringBuilder();
-    char currentChar = _source.PeekChar();
-    while (currentChar != '"') {
-      if (char.IsLetterOrDigit(currentChar)) {
-        _source.Eat();
-        value.Append(currentChar);
-      }
-
-      if (currentChar == '\\') {
-        _source.Eat();
-        char nextChar =  _source.PeekChar();
-
-        switch (nextChar) {
-          case 'n':
-            _source.Eat();
-            value.Append('\n');
-            break;
-          case 't':
-            _source.Eat();
-            value.Append('\t');
-            break;
-          case '"':
-            _source.Eat();
-            value.Append('"');
-            break;
-          default:
-            return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn());
-        }
-      }
-      currentChar = _source.PeekChar();
+    var stringLiteral = this._source.NextAsserted().ToString();
+    stringLiteral += this.ReadWhile(symbol => !LexerRules.IsStringLiteralFirstSymbol(symbol));
+    if (!LexerRules.IsStringLiteralFirstSymbol(this._source.Peek())) {
+      return this.Token(TokenType.Illegal, stringLiteral);
     }
-    return new Token(TokenType.StringLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
+    stringLiteral += this._source.NextAsserted();
+    return this.Token(TokenType.StringLiteral, stringLiteral);
   }
 
   private Token ReadCharToken() {
-    StringBuilder value = new StringBuilder("");
-    char currentChar = _source.PeekChar();
-    if (char.IsLetterOrDigit(currentChar)) { // checks if char is valid
-      _source.Eat();
-      value.Append(currentChar);
+    var charLiteral = this._source.NextAsserted().ToString();
+    if (this._source.IsEof) {
+      return this.Token(TokenType.Illegal, charLiteral);
     }
-
-    if (char.IsLetterOrDigit(_source.PeekChar())) {
-      return new Token(TokenType.Illegal, String.Empty, _source.GetLine(), _source.GetColumn());
+    charLiteral += this._source.NextAsserted();
+    if (!LexerRules.IsCharLiteralFirstSymbol(this._source.Peek())) {
+      return this.Token(TokenType.Illegal, charLiteral);
     }
-
-    return new Token(TokenType.CharLiteral, value.ToString(), _source.GetLine(), _source.GetColumn());
+    charLiteral += this._source.NextAsserted();
+    return this.Token(TokenType.CharLiteral, charLiteral);
   }
 
+  #endregion
 }

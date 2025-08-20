@@ -31,6 +31,7 @@ public static class TokenTypeExtensions {
     TokenType.Punctuation => "punctuation",
     TokenType.TypeLiteral => "type literal",
     TokenType.Eof => "end of file",
-    TokenType.Illegal => "illegal token"
+    TokenType.Illegal => "illegal token",
+    _ => "unknown token"
   };
 }
