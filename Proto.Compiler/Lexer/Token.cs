@@ -1,7 +1,9 @@
 namespace Proto.Compiler.Lexer;
 
-public readonly struct Token(TokenType type, string value, uint line, uint column) {
+using Proto.Compiler.Utils;
+
+public readonly record struct Token(TokenType Type, string Value, Location Location) {
   public override string ToString() {
-    return $"{type} \"{value}\" at line {line}, column {column}";
+    return $"{this.Type.ShortDescription()} \"{this.Value}\" {this.Location}";
   }
 }
