@@ -1,17 +1,28 @@
 namespace Proto.Compiler.Lexer;
 
+using System.Collections;
 using System.Diagnostics.Contracts;
 using System.Text;
 
 using Proto.Compiler.Utils;
 
-public sealed class Lexer : Peekable<Token> {
+public sealed class Lexer : Peekable<Token>, IEnumerable<Token> {
   private readonly ProgramSource _source;
   private Location _tokenLocation;
 
   public Lexer(TextReader reader) {
     this._source = new ProgramSource(reader);
     this._tokenLocation = this._source.Location;
+  }
+
+  public IEnumerator<Token> GetEnumerator() {
+    while (this.Peek().Type != TokenType.Eof) {
+      yield return this.Next();
+    }
+  }
+
+  IEnumerator IEnumerable.GetEnumerator() {
+    return this.GetEnumerator();
   }
 
   protected override Token ReadElement() {
@@ -63,11 +74,9 @@ public sealed class Lexer : Peekable<Token> {
   private string ReadWhile(Func<char, bool> predicate) {
     var output = new StringBuilder();
     while (!this._source.IsEof) {
-      var peek = this._source.Peek();
-      if (peek is { } charPeek) {
-        if (!predicate(charPeek)) break;
-        output.Append(charPeek);
-      } else break;
+      var peek = this._source.PeekAsserted();
+      if (!predicate(peek)) break;
+      output.Append(this._source.NextAsserted());
     }
     return output.ToString();
   }
