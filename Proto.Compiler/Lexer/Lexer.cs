@@ -50,6 +50,10 @@ public sealed class Lexer : Peekable<Token>, IEnumerable<Token> {
       return this.ReadCharToken();
     }
 
+    if (LexerRules.IsColon(currentChar)) {
+      return this.ReadColonToken();
+    }
+
     if (LexerRules.IsPunctuation(currentChar)) {
       return this.ReadSingleCharPunctuation();
     }
@@ -127,6 +131,15 @@ public sealed class Lexer : Peekable<Token>, IEnumerable<Token> {
   private Token ReadSingleCharPunctuation() {
     var punctuationLiteral = this._source.NextAsserted().ToString();
     return this.Token(TokenType.Punctuation, punctuationLiteral);
+  }
+
+  private Token ReadColonToken() {
+    var literal = this._source.NextAsserted().ToString();
+    if (!LexerRules.IsEqualSign(this._source.Peek())) {
+      return this.Token(TokenType.Punctuation, literal);
+    }
+    literal += this._source.NextAsserted();
+    return this.Token(TokenType.Operator, literal);
   }
 
   private Token ReadIllegalToken() {

@@ -19,11 +19,12 @@ internal static class LexerRules {
   private const char EqualSign = '=';
   private const char DotSign = '.';
   private const char UnderscoreSymbol = '_';
+  private const char ColonSymbol = ':';
 
   private static readonly FrozenDictionary<string, TokenType> KeywordToTokenTypeLookup;
   private static readonly char[] PunctuationSymbols = [';', ':', '.', ',', '{', '}', '(', ')', '[', ']'];
   private static readonly char[] CompoundAssignmentOperatorInitialSymbols = ['+', '-', '*', '/', '<', '>'];
-  private static readonly char[] OperatorsWithEqualSignInitialSymbols = ['!', ':'];
+  private static readonly char[] OperatorsWithEqualSignInitialSymbols = ['!'];
   private static readonly char[] SingleCharOperators = ['='];
 
 #pragma warning disable
@@ -64,6 +65,10 @@ internal static class LexerRules {
 
   public static bool IsDotSign(char? symbol) {
     return symbol == DotSign;
+  }
+
+  public static bool IsColon(char? symbol) {
+    return symbol == ColonSymbol;
   }
 
   #endregion
