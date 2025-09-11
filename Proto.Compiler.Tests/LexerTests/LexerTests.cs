@@ -1,4 +1,4 @@
-namespace Proto.Compiler.Tests.UtilsTests;
+namespace Proto.Compiler.Tests.LexerTests;
 
 using Proto.Compiler.Lexer;
 
