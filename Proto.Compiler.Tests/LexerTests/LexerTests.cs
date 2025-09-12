@@ -20,6 +20,17 @@ file static class LexerTestsUtils {
       }
     });
   }
+
+  public static void AssertWithUntypedChunkTable(this IEnumerable<Token> tokens, IEnumerable<string> chunks) {
+    var tokenArray = tokens.ToArray();
+    var chunkArray = chunks.ToArray();
+    Assert.Multiple(() => {
+      Assert.That(tokenArray, Has.Length.EqualTo(chunkArray.Length));
+      for (var i = 0; i < tokenArray.Length; i++) {
+        Assert.That(tokenArray[i].Value, Is.EqualTo(chunkArray[i]));
+      }
+    });
+  }
 }
 
 [TestFixture]
@@ -179,6 +190,63 @@ public class LexerTests {
   public void Lexer_ShouldHangleIllegalTokens(string input) {
     var token = GetToken(input);
     token.AssertTypeAndValue(TokenType.Illegal, input);
+  }
+
+  #endregion
+
+  #region Sample Program Cases
+
+  [TestCase("""
+            task add(a: integer, b: integer): integer
+            begin
+              return a + b;
+            end
+
+            task main
+            begin
+              result := add(1, 2);
+              print(result);
+            end
+            """)]
+  public void Lexer_ShouldHandleFirstSmallProgram(string input) {
+    var tokens = GetTokens(input);
+    tokens.AssertWithUntypedChunkTable([
+      "task", "add", "(", "a", ":", "integer", ",", "b", ":", "integer", ")",
+      ":", "integer", "begin", "return", "a", "+", "b", ";", "end",
+      "task", "main", "begin", "result", ":=", "add", "(", "1", ",", "2", ")",
+      ";", "print", "(", "result", ")", ";", "end"
+    ]);
+  }
+
+  [TestCase("""
+            task isPrime(n: integer): boolean
+            begin
+              i := 2;
+              while i * i <= n
+              begin
+                if n mod i = 0 then return false;
+                i += 1;
+              end
+              return true;
+            end
+
+            task main
+            begin
+              input := 156;
+              answer := isPrime(input);
+              print(answer);
+            end
+            """)]
+  public void Lexer_ShouldHandleSecondSmallProgram(string input) {
+    var tokens = GetTokens(input);
+    tokens.AssertWithUntypedChunkTable([
+      "task", "isPrime", "(", "n", ":", "integer", ")", ":", "boolean", "begin",
+      "i", ":=", "2", ";", "while", "i", "*", "i", "<=", "n", "begin", "if",
+      "n", "mod", "i", "=", "0", "then", "return", "false", ";", "i", "+=",
+      "1", ";", "end", "return", "true", ";", "end", "task", "main", "begin",
+      "input", ":=", "156", ";", "answer", ":=", "isPrime", "(", "input", ")",
+      ";", "print", "(", "answer", ")", ";", "end"
+    ]);
   }
 
   #endregion

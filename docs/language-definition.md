@@ -8,7 +8,7 @@ program ::=
 statement ::=
   "break" ";"
   "continue" ";"
-  "return" ";"
+  "return" expression? ";"
   var-definition
   if-statement
   loop-statement
@@ -30,8 +30,8 @@ block-statement ::=
 
 loop-statement ::=
   "while" expression statement
-  
- 
+
+
 expression ::=
   assign_expr
 
