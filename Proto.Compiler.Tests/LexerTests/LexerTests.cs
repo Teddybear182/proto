@@ -9,11 +9,22 @@ file static class LexerTestsUtils {
       Assert.That(token.Value, Is.EqualTo(value));
     });
   }
+
+  public static void AssertWithChunkTable(this IEnumerable<Token> tokens, TokenType type, IEnumerable<string> chunks) {
+    var tokenArray = tokens.ToArray();
+    var chunkArray = chunks.ToArray();
+    Assert.Multiple(() => {
+      Assert.That(tokenArray, Has.Length.EqualTo(chunkArray.Length));
+      for (var i = 0; i < tokenArray.Length; i++) {
+        tokenArray[i].AssertTypeAndValue(type, chunkArray[i]);
+      }
+    });
+  }
 }
 
 [TestFixture]
 public class LexerTests {
-  #region Language Definitions Tests
+  #region Language Definition Tests
 
   [TestCase("")]
   [TestCase("   ")]
@@ -134,6 +145,44 @@ public class LexerTests {
 
   #endregion
 
+  #region Edge Cases
+
+  [TestCase("::=:")]
+  public void Lexer_ShouldHandleEdgeCaseWithColon(string input) {
+    var tokens = GetTokens(input);
+    Assert.Multiple(() => {
+      Assert.That(tokens, Has.Count.EqualTo(3));
+      tokens[0].AssertTypeAndValue(TokenType.Punctuation, ":");
+      tokens[1].AssertTypeAndValue(TokenType.Operator, ":=");
+      tokens[2].AssertTypeAndValue(TokenType.Punctuation, ":");
+    });
+  }
+
+  [TestCase("=+=*==/=<=>=<>!===")]
+  public void Lexer_ShouldHandleEdgeCaseWithOperators(string input) {
+    var tokens = GetTokens(input);
+    tokens.AssertWithChunkTable(TokenType.Operator, [
+      "=", "+=", "*=", "=", "/=", "<=", ">=", "<", ">", "!=", "=", "="
+    ]);
+  }
+
+  #endregion
+
+  #region Illegal Token Cases
+
+  [TestCase("\"not closed string")]
+  [TestCase("\"")]
+  [TestCase("'a")]
+  [TestCase("'")]
+  [TestCase("!")]
+  [TestCase("@#*&*&$(*&#$^*&^@#$&^")]
+  public void Lexer_ShouldHangleIllegalTokens(string input) {
+    var token = GetToken(input);
+    token.AssertTypeAndValue(TokenType.Illegal, input);
+  }
+
+  #endregion
+
   #region Helper Methods
 
   private static List<Token> GetTokens(string input) {
@@ -144,6 +193,7 @@ public class LexerTests {
 
   private static Token GetToken(string input) {
     var tokens = GetTokens(input);
+    Assert.That(tokens, Has.Count.EqualTo(1));
     return tokens[0];
   }
 
