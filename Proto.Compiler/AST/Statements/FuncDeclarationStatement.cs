@@ -2,7 +2,7 @@ namespace Proto.Compiler.AST;
 
 public record FuncDeclarationStatement(
   string Name,
-  Argument[]? Arguments,
+  Parameter[]? Parameters,
   TypeLiteral? ReturnType,
   BlockStatement Body
 ) : Statement(NodeType.FuncDeclarationStatement);

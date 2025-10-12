@@ -1,7 +1,7 @@
 namespace Proto.Compiler.AST;
 
 public record BinaryExpression(
-  string Operator,
+  OperatorLiteral Operator,
   Expression Left,
   Expression Right
 ) : Expression(NodeType.BinaryExpression);

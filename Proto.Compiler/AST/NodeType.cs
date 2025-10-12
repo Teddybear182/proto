@@ -3,6 +3,7 @@ namespace Proto.Compiler.AST;
 public enum NodeType {
   BinaryExpression,
   UnaryExpression,
+  OperatorLiteral,
   AssignmentExpression,
   CallExpression,
   IntegerLiteralExpression,
