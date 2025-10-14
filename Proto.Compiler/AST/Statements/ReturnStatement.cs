@@ -1,3 +1,5 @@
-namespace Proto.Compiler.AST;
+using Proto.Compiler.AST.Expressions;
 
-public record ReturnStatement(Expression Value) : Statement(NodeType.ReturnStatement);
+namespace Proto.Compiler.AST.Statements;
+
+public record ReturnStatement(Expression? Value) : Statement(NodeType.ReturnStatement);
