@@ -2,12 +2,14 @@ namespace Proto.Compiler.Lexer;
 
 using Proto.Compiler.Utils;
 
-internal sealed class ProgramSource(TextReader reader) : IPeekable<char?> {
+public sealed class ProgramSource(TextReader reader) : IPeekable<char?> {
   private const int StartingLine = 1;
-  private const int StartingColumn = 0;
+  private const int StartingColumn = 1;
+  private const int StartingOffset = 0;
 
   public uint Line { get; private set; } = StartingLine;
   public uint Column { get; private set; } = StartingColumn;
+  public uint Offset { get; private set; } = StartingOffset;
 
   public char? Peek() {
     var peeked = reader.Peek();
@@ -37,6 +39,7 @@ internal sealed class ProgramSource(TextReader reader) : IPeekable<char?> {
     } else {
       this.Column++;
     }
+    this.Offset++;
     return charRead;
   }
 
@@ -52,6 +55,7 @@ internal sealed class ProgramSource(TextReader reader) : IPeekable<char?> {
 
   public Location Location => new(
     Line: this.Line,
-    Column: this.Column
+    Column: this.Column,
+    Offset: this.Offset
   );
 }
