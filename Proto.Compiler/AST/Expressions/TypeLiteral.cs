@@ -1,4 +1,4 @@
-namespace Proto.Compiler.AST;
+namespace Proto.Compiler.AST.Expressions;
 
 public enum TypeLiteral {
   Integer,

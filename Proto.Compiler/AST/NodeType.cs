@@ -11,6 +11,7 @@ public enum NodeType {
   StringLiteralExpression,
   CharLiteralExpression,
   BooleanLiteralExpression,
+  IdentifierExpression,
   Program,
   FuncDeclarationStatement,
   VarDeclarationStatement,

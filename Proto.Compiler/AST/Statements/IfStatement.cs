@@ -1,4 +1,6 @@
-namespace Proto.Compiler.AST;
+using Proto.Compiler.AST.Expressions;
+
+namespace Proto.Compiler.AST.Statements;
 
 public record IfStatement(
   Expression Condition,
