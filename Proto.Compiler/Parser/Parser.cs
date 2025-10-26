@@ -1,119 +1,144 @@
 namespace Proto.Compiler.Parser;
 
-using Proto.Compiler.Lexer;
+using Lexer;
 using AST.Statements;
 using AST.Expressions;
 
 public class Parser {
-  private List<Token> _tokenStream;
-  private int _pos = 0;
 
-  #region Variables for binary operators
-  private readonly Dictionary<string, OperatorType> _operators = new Dictionary<string, OperatorType> {
-    { "+", OperatorType.Plus},
-    { "-", OperatorType.Minus},
-    { "*", OperatorType.Multiply},
-    { "/", OperatorType.Divide},
-    { "mod", OperatorType.Modulo},
-  };
-
-  private readonly string[] _additiveOperators = ["+", "-"];
-  private readonly string[] _multiplicativeOperators = ["*", "/", "mod"];
-  #endregion
+  private readonly ParserTools _parserTools;
 
   public Parser(List<Token> tokenStream) {
-    this._tokenStream = tokenStream;
+    this._parserTools = new ParserTools(tokenStream);
   }
-
-  #region Helper methods
-  private Token Check() {
-    return this._tokenStream[this._pos];
-  }
-
-  private Token Next() {
-    return this._tokenStream[this._pos];
-    this._pos++;
-  }
-
-  private TokenType CheckType() {
-    return this._tokenStream[this._pos].Type;
-  }
-
-  private string CheckValue() {
-    return this._tokenStream[this._pos].Value;
-  }
-
-  private void Expect(TokenType expected, string errorMessage) {
-    if (this._tokenStream[this._pos].Type != expected) {
-      // TODO: this should be changed in the future
-      Console.WriteLine(errorMessage + ", " + this._tokenStream[this._pos].ToString());
-      return;
-    }
-
-    this.Next();
-  }
-
-  private bool CheckIf(TokenType expected) {
-    return this._tokenStream[this._pos].Type == expected;
-  }
-  #endregion
 
   public ProgramStatement Generate() {
     var program = new ProgramStatement([]);
-    while (this.CheckType() != TokenType.Eof) {
+    while (this._parserTools.CheckType() != TokenType.Eof) {
       program.Body.Append(ParseStatement());
     }
 
     return program;
   }
 
+  #region Parsing statements
   private Statement ParseStatement() {
     // TODO: change this method in the future
+    return this.ParseBlockStatement();
+  }
+
+  private BlockStatement ParseBlockStatement() {
+    if (this._parserTools.CheckValue() == "{") {
+      this._parserTools.Next();
+      var block = new BlockStatement(this.ParseStatementList());
+      this._parserTools.Next();
+      return block;
+    }
+
     return new BlockStatement([]);
   }
 
-  private Expression ParseExpression() {
-    return this.ParseAdditiveExpression();
+  private Statement[] ParseStatementList() {
+    var statementList = new Statement[] {};
+    while (this._parserTools.CheckType() != TokenType.Eof && this._parserTools.CheckValue() != "}") {
+      statementList.Append(ParseStatement());
+    }
+    return statementList;
   }
 
-  // 2 + 4
-  private Expression ParseAdditiveExpression() {
-    var left = this.ParseMultiplicativeExpression();
+  #endregion
 
-    if (this._additiveOperators.Contains(this.CheckValue())) {
-      var op = new OperatorLiteral(this._operators[this.Next().Value]);
-      var right = this.ParseMultiplicativeExpression();
+
+
+  #region Parsing expressions
+  private Expression ParseExpression() {
+    return this.ParseBinaryExpression(this.ParseOrExpression, ParserUtils.Or);
+  }
+
+  private Expression ParseBinaryExpression(Func<Expression> next, string[] operators) {
+    var left = next();
+
+    while (this._parserTools.CheckType() == TokenType.Operator && operators.Contains(this._parserTools.CheckValue())) {
+      var nextToken = this._parserTools.Next();
+      var op = new OperatorLiteral(ParserUtils.Operators[nextToken.Value]);
+      var right = next();
       left = new BinaryExpression(op, left, right);
     }
 
     return left;
+  }
+
+  private Expression ParseOrExpression() {
+    return this.ParseBinaryExpression(this.ParseAndExpression, ParserUtils.And);
+  }
+
+  private Expression ParseAndExpression() {
+    return this.ParseBinaryExpression(this.ParseComparisonExpression1, ParserUtils.ComparisonOperators1);
+  }
+
+  private Expression ParseComparisonExpression1() {
+    return this.ParseBinaryExpression(this.ParseComparisonExpression2, ParserUtils.ComparisonOperators2);
+  }
+
+  private Expression ParseComparisonExpression2() {
+    return this.ParseBinaryExpression(this.ParseAdditiveExpression, ParserUtils.AdditiveOperators);
+  }
+
+  private Expression ParseAdditiveExpression() {
+    return this.ParseBinaryExpression(this.ParseMultiplicativeExpression, ParserUtils.MultiplicativeOperators);
   }
 
   private Expression ParseMultiplicativeExpression() {
-    var left = this.ParsePrimaryExpression();
+    return this.ParseUnaryExpression();
+  }
 
-    if (this._multiplicativeOperators.Contains(this.CheckValue())) {
-      var op = new OperatorLiteral(this._operators[this.Next().Value]);
-      var right = this.ParsePrimaryExpression();
-      left = new BinaryExpression(op, left, right);
+  private Expression ParseUnaryExpression() {
+    if (ParserUtils.UnaryOperators.Contains(this._parserTools.CheckValue())) {
+      var op = new OperatorLiteral(ParserUtils.Operators[this._parserTools.Next().Value]);
+      var operand = this.ParsePrimaryExpression();
+      return new UnaryExpression(op, operand);
     }
 
-    return left;
+    return this.ParsePrimaryExpression();
   }
 
   private Expression ParsePrimaryExpression() {
-    var token = this.Check();
+    var token = this._parserTools.Check();
     switch (token.Type) {
+
       case TokenType.Identifier:
+        this._parserTools.Next();
         return new IdentifierExpression(token.Value);
+
       case TokenType.IntegerLiteral:
+        this._parserTools.Next();
         return new IntegerLiteral(int.Parse(token.Value));
+
       case TokenType.FloatLiteral:
+        this._parserTools.Next();
         return new FloatLiteral(float.Parse(token.Value));
+
       case TokenType.StringLiteral:
+        this._parserTools.Next();
         return new StringLiteral(token.Value);
+
+      case TokenType.CharLiteral:
+        this._parserTools.Next();
+        return new CharLiteral(char.Parse(token.Value));
+
+      case TokenType.BooleanLiteral:
+        this._parserTools.Next();
+        return new BooleanLiteral(bool.Parse(token.Value));
+
+      case TokenType.Punctuation:
+        this._parserTools.ExpectValue("(", token.Location, $"Expected open parenthesis instead of {token.ToString()}");
+        var expression = this.ParseExpression();
+        this._parserTools.ExpectValue(")", token.Location, $"Expected end of expression");
+        return expression;
+
       default:
-        return new IntegerLiteral(0);
+        throw new ParserException($"Unexpected token: {token.ToString()}", token.Location);
     }
   }
+  #endregion
 }
